@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:first_app/widgets/custom_button.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -82,17 +83,54 @@ class _SignUpScreenState extends State<SignUpScreen> {
     }
 
     setState(() => _isLoading = true);
-    await Future.delayed(const Duration(seconds: 2));
-    setState(() => _isLoading = false);
+    try {
+      final name = _nameController.text.trim();
+      final email = _emailController.text.trim();
+      final password = _passwordController.text.trim();
 
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('✅ Compte créé avec succès !'),
-          backgroundColor: Colors.green,
-        ),
+      final cred = await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
       );
-      Navigator.pop(context);
+
+      // Optionally set display name
+      await cred.user?.updateDisplayName(name);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ Compte créé avec succès !'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        // After signup, go back to login (or navigate to home):
+        Navigator.pop(context);
+      }
+    } on FirebaseAuthException catch (e) {
+      String message = 'Erreur lors de la création du compte.';
+      if (e.code == 'email-already-in-use') {
+        message = 'Cet email est déjà utilisé.';
+      } else if (e.code == 'weak-password') {
+        message = 'Mot de passe trop faible.';
+      } else if (e.code == 'invalid-email') {
+        message = 'Email invalide.';
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(message), backgroundColor: Colors.red),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Erreur inconnue lors de la création.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
