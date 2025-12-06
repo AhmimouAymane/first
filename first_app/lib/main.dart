@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'screens/login_screen.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   try {
-    await Firebase.initializeApp();
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
   } catch (e) {
     print('Firebase initialization error: $e');
     // Continue anyway for testing
