@@ -1,4 +1,8 @@
 {
+<<<<<<< HEAD
     "java.configuration.updateBuildConfiguration": "interactive",
     "cmake.sourceDirectory": "C:/Flutter-project/Omnium/first_app/windows/runner"
+=======
+    "cmake.sourceDirectory": "C:/Users/user/Desktop/first_app/windows"
+>>>>>>> 249324819adaf74d7faa4a32aff175d8e9cea4cf
 }
