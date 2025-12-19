@@ -1,18 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
+import 'services/google_auth_service.dart';
 import 'widgets/auth_wrapper.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize Firebase
   try {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
   } catch (e) {
     print('Firebase initialization error: $e');
-    // Continue anyway for testing
   }
+  
+  // Initialize Google Sign-In
+  // Note: clientId and serverClientId are optional if properly configured
+  // in your Firebase project and platform-specific config files
+  await GoogleAuthService.initialize();
+  
   runApp(const MyApp());
 }
 

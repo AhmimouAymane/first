@@ -3,6 +3,7 @@ import 'package:first_app/widgets/custom_button.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/google_auth_service.dart';
 import './home_screen.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -149,75 +150,86 @@ class _SignUpScreenState extends State<SignUpScreen> {
   }
 
   Future<void> _handleGoogleSignUp() async {
-    setState(() => _isGoogleLoading = true);
-    try {
-      // Use the Google Auth Service to sign in
-      // This will create a new account if one doesn't exist, or sign in if it does
-      final UserCredential? userCredential =
-          await GoogleAuthService.signInWithGoogle();
+  setState(() => _isGoogleLoading = true);
+  try {
+    User? user;
 
-      if (userCredential == null) {
-        // User canceled the sign-in
-        if (mounted) setState(() => _isGoogleLoading = false);
-        return;
-      }
-
-      // Check if this is a new user (signup) or existing user (login)
-      final bool isNewUser = userCredential.additionalUserInfo?.isNewUser ?? false;
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(isNewUser
-                ? '✅ Compte créé avec succès avec Google !'
-                : '✅ Connexion réussie avec Google !'),
-            backgroundColor: const Color(0xFF5CFBAC),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        );
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const HomeScreen()),
-        );
-      }
-    } on FirebaseAuthException catch (e) {
-      String message = 'Erreur lors de la création du compte avec Google.';
-      if (e.code == 'account-exists-with-different-credential') {
-        message = 'Un compte existe déjà avec cet email.';
-      } else if (e.code == 'invalid-credential') {
-        message = 'Les identifiants Google sont invalides.';
-      } else if (e.code == 'operation-not-allowed') {
-        message = 'La connexion Google n\'est pas activée.';
-      } else if (e.code == 'network-request-failed') {
-        message = 'Erreur de connexion réseau. Vérifiez votre connexion.';
-      }
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(message),
-            backgroundColor: const Color(0xFFFF5252),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erreur lors de la création du compte avec Google: ${e.toString()}'),
-            backgroundColor: const Color(0xFFFF5252),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isGoogleLoading = false);
+    if (kIsWeb) {
+      // Web: Use Firebase Auth popup
+      final GoogleAuthProvider provider = GoogleAuthProvider();
+      provider.addScope('email');
+      
+      final UserCredential userCredential = 
+          await FirebaseAuth.instance.signInWithPopup(provider);
+      user = userCredential.user;
+    } else {
+      // Mobile: Use GoogleAuthService
+      user = await GoogleAuthService.signInWithGoogle();
     }
-  }
 
+    if (user == null) {
+      // User canceled the sign-in
+      if (mounted) setState(() => _isGoogleLoading = false);
+      return;
+    }
+
+    // Check if this is a new user (signup) or existing user (login)
+    final bool isNewUser = user.metadata.creationTime == user.metadata.lastSignInTime;
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(isNewUser
+              ? '✅ Compte créé avec succès avec Google !'
+              : '✅ Connexion réussie avec Google !'),
+          backgroundColor: const Color(0xFF5CFBAC),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const HomeScreen()),
+      );
+    }
+  } on FirebaseAuthException catch (e) {
+    String message = 'Erreur lors de la création du compte avec Google.';
+    if (e.code == 'account-exists-with-different-credential') {
+      message = 'Un compte existe déjà avec cet email.';
+    } else if (e.code == 'invalid-credential') {
+      message = 'Les identifiants Google sont invalides.';
+    } else if (e.code == 'operation-not-allowed') {
+      message = 'La connexion Google n\'est pas activée.';
+    } else if (e.code == 'network-request-failed') {
+      message = 'Erreur de connexion réseau. Vérifiez votre connexion.';
+    } else if (e.code == 'popup-closed-by-user') {
+      message = 'Connexion annulée.';
+    }
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: const Color(0xFFFF5252),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+    }
+  } catch (e) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erreur: ${e.toString()}'),
+          backgroundColor: const Color(0xFFFF5252),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+    }
+  } finally {
+    if (mounted) setState(() => _isGoogleLoading = false);
+  }
+}
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -234,7 +246,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   const SizedBox(height: 30),
                   
                   // Logo
-                  Container(
+                  SizedBox(
                     width: 350,
                     child: Padding(
                       padding: const EdgeInsets.all(24),

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../screens/voice_assistant_screen.dart';
-import '../screens/login_screen.dart';
 
 class MyMenu2 extends StatefulWidget {
   const MyMenu2({super.key});
