@@ -152,31 +152,27 @@ class _SignUpScreenState extends State<SignUpScreen> {
   Future<void> _handleGoogleSignUp() async {
   setState(() => _isGoogleLoading = true);
   try {
-    User? user;
-
+    // Create Google Auth Provider
+    final GoogleAuthProvider provider = GoogleAuthProvider();
+    provider.addScope('email');
+    provider.addScope('profile');
+    
+    UserCredential userCredential;
+    
     if (kIsWeb) {
-      // Web: Use Firebase Auth popup
-      final GoogleAuthProvider provider = GoogleAuthProvider();
-      provider.addScope('email');
-      
-      final UserCredential userCredential = 
-          await FirebaseAuth.instance.signInWithPopup(provider);
-      user = userCredential.user;
+      // Web: Use popup
+      userCredential = await FirebaseAuth.instance.signInWithPopup(provider);
     } else {
-      // Mobile: Use GoogleAuthService
-      user = await GoogleAuthService.signInWithGoogle();
+      // Mobile: Use signInWithProvider
+      userCredential = await FirebaseAuth.instance.signInWithProvider(provider);
     }
+    
+    final user = userCredential.user;
 
-    if (user == null) {
-      // User canceled the sign-in
-      if (mounted) setState(() => _isGoogleLoading = false);
-      return;
-    }
+    if (user != null && mounted) {
+      // Check if this is a new user
+      final bool isNewUser = userCredential.additionalUserInfo?.isNewUser ?? false;
 
-    // Check if this is a new user (signup) or existing user (login)
-    final bool isNewUser = user.metadata.creationTime == user.metadata.lastSignInTime;
-
-    if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(isNewUser
@@ -194,17 +190,37 @@ class _SignUpScreenState extends State<SignUpScreen> {
     }
   } on FirebaseAuthException catch (e) {
     String message = 'Erreur lors de la création du compte avec Google.';
-    if (e.code == 'account-exists-with-different-credential') {
-      message = 'Un compte existe déjà avec cet email.';
-    } else if (e.code == 'invalid-credential') {
-      message = 'Les identifiants Google sont invalides.';
-    } else if (e.code == 'operation-not-allowed') {
-      message = 'La connexion Google n\'est pas activée.';
-    } else if (e.code == 'network-request-failed') {
-      message = 'Erreur de connexion réseau. Vérifiez votre connexion.';
-    } else if (e.code == 'popup-closed-by-user') {
-      message = 'Connexion annulée.';
+    
+    print('Firebase Auth Error Code: ${e.code}');
+    print('Firebase Auth Error Message: ${e.message}');
+    
+    switch (e.code) {
+      case 'account-exists-with-different-credential':
+        message = 'Un compte existe déjà avec cet email.';
+        break;
+      case 'invalid-credential':
+        message = 'Les identifiants Google sont invalides.';
+        break;
+      case 'operation-not-allowed':
+        message = 'La connexion Google n\'est pas activée dans Firebase.';
+        break;
+      case 'user-disabled':
+        message = 'Ce compte a été désactivé.';
+        break;
+      case 'network-request-failed':
+        message = 'Erreur de connexion réseau.';
+        break;
+      case 'popup-closed-by-user':
+        message = 'Connexion annulée.';
+        break;
+      case 'cancelled':
+      case 'user-cancelled':
+        message = 'Connexion annulée.';
+        break;
+      default:
+        message = 'Erreur: ${e.message ?? e.code}';
     }
+    
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -216,6 +232,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
       );
     }
   } catch (e) {
+    print('General Error: $e');
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -229,8 +246,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   } finally {
     if (mounted) setState(() => _isGoogleLoading = false);
   }
-}
-  @override
+}  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF121212),

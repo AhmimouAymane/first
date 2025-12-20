@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../screens/voice_assistant_screen.dart';
+import '../services/google_auth_service.dart';
 
 class MyMenu2 extends StatefulWidget {
   const MyMenu2({super.key});
@@ -18,6 +19,102 @@ class _MyMenu2State extends State<MyMenu2> {
       return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
     }
     return name[0].toUpperCase();
+  }
+
+  Future<void> _handleLogout(BuildContext context) async {
+    // Show confirmation dialog
+    final shouldLogout = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF1E1E1E),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: const Text(
+            'Déconnexion',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          content: const Text(
+            'Êtes-vous sûr de vouloir vous déconnecter ?',
+            style: TextStyle(
+              color: Color(0xFF9E9E9E),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text(
+                'Annuler',
+                style: TextStyle(
+                  color: Color(0xFF9E9E9E),
+                ),
+              ),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: TextButton.styleFrom(
+                backgroundColor: const Color(0xFFFF5252).withOpacity(0.1),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                child: Text(
+                  'Déconnexion',
+                  style: TextStyle(
+                    color: Color(0xFFFF5252),
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldLogout == true) {
+      // Close the drawer first
+      if (mounted) Navigator.pop(context);
+
+      try {
+        // Sign out from Google (if signed in with Google)
+        await GoogleAuthService.signOut();
+        
+        // This will also trigger authStateChanges which navigates to login
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('✅ Déconnexion réussie'),
+              backgroundColor: const Color(0xFF5CFBAC),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Erreur lors de la déconnexion: ${e.toString()}'),
+              backgroundColor: const Color(0xFFFF5252),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          );
+        }
+      }
+    }
   }
 
   @override
@@ -78,6 +175,7 @@ class _MyMenu2State extends State<MyMenu2> {
                           ? CircleAvatar(
                               radius: 37,
                               backgroundImage: NetworkImage(photoUrl),
+                              backgroundColor: const Color(0xFF1E1E1E),
                             )
                           : CircleAvatar(
                               radius: 37,
@@ -244,10 +342,7 @@ class _MyMenu2State extends State<MyMenu2> {
                   icon: Icons.logout,
                   title: 'Déconnexion',
                   isLogout: true,
-                  onTap: () async {
-                    Navigator.pop(context);
-                    await FirebaseAuth.instance.signOut();
-                  },
+                  onTap: () => _handleLogout(context),
                 ),
               ],
             ),

@@ -6,7 +6,7 @@ import 'widgets/auth_wrapper.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Initialize Firebase
   try {
     await Firebase.initializeApp(
@@ -15,12 +15,14 @@ void main() async {
   } catch (e) {
     print('Firebase initialization error: $e');
   }
-  
+
   // Initialize Google Sign-In
-  // Note: clientId and serverClientId are optional if properly configured
-  // in your Firebase project and platform-specific config files
-  await GoogleAuthService.initialize();
-  
+  // Get your Web client ID from Firebase Console > Project Settings > Your apps
+  await GoogleAuthService.initialize(
+    serverClientId:
+        '406860686935-jjoni6me0mo3ebh40d355d5bcqf1nbk9.apps.googleusercontent.com',
+  );
+
   runApp(const MyApp());
 }
 

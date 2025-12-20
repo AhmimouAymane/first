@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:first_app/widgets/custom_button.dart';
 import './signup_screen.dart';
 import './home_screen.dart';
@@ -17,6 +18,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
   bool _isLoading = false;
+  bool _isGoogleLoading = false;
   bool _keepMeLoggedIn = false;
 
   @override
@@ -108,6 +110,83 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  Future<void> _handleGoogleSignIn() async {
+    setState(() => _isGoogleLoading = true);
+    try {
+      // Use Firebase Auth directly on all platforms (simpler!)
+      final GoogleAuthProvider provider = GoogleAuthProvider();
+      provider.addScope('email');
+      
+      UserCredential userCredential;
+      
+      if (kIsWeb) {
+        // Web: Use popup
+        userCredential = await FirebaseAuth.instance.signInWithPopup(provider);
+      } else {
+        // Mobile: Use signInWithProvider (works on Android/iOS without google_sign_in package)
+        userCredential = await FirebaseAuth.instance.signInWithProvider(provider);
+      }
+      
+      final user = userCredential.user;
+
+      if (user == null) {
+        if (mounted) setState(() => _isGoogleLoading = false);
+        return;
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('✅ Connexion réussie avec Google !'),
+            backgroundColor: const Color(0xFF5CFBAC),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        );
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const HomeScreen()),
+        );
+      }
+    } on FirebaseAuthException catch (e) {
+      String message = 'Erreur lors de la connexion avec Google.';
+      if (e.code == 'account-exists-with-different-credential') {
+        message = 'Un compte existe déjà avec cet email.';
+      } else if (e.code == 'invalid-credential') {
+        message = 'Les identifiants Google sont invalides.';
+      } else if (e.code == 'operation-not-allowed') {
+        message = 'La connexion Google n\'est pas activée.';
+      } else if (e.code == 'network-request-failed') {
+        message = 'Erreur de connexion réseau.';
+      } else if (e.code == 'popup-closed-by-user') {
+        message = 'Connexion annulée.';
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(message),
+            backgroundColor: const Color(0xFFFF5252),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur: ${e.toString()}'),
+            backgroundColor: const Color(0xFFFF5252),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isGoogleLoading = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -126,8 +205,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   // Logo
                   SizedBox(
                     width: 350,
-                    
-                    
                     child: Padding(
                       padding: const EdgeInsets.all(24),
                       child: Image.asset(
@@ -150,7 +227,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 32),
 
-                  // Google Sign In Button (Static)
+                  // Google Sign In Button
                   Container(
                     width: double.infinity,
                     height: 56,
@@ -163,38 +240,45 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                     child: TextButton(
-                      onPressed: () {
-                        // Static button - no functionality yet
-                      },
+                      onPressed: _isGoogleLoading ? null : _handleGoogleSignIn,
                       style: TextButton.styleFrom(
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
                         overlayColor: const Color(0xFF5CFBAC).withOpacity(0.1),
                       ),
-                      child: const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            'G',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                              fontFamily: 'Product Sans',
+                      child: _isGoogleLoading
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF5CFBAC)),
+                              ),
+                            )
+                          : const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  'G',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                    fontFamily: 'Product Sans',
+                                  ),
+                                ),
+                                SizedBox(width: 12),
+                                Text(
+                                  'Se connecter avec Google',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
                             ),
-                          ),
-                          SizedBox(width: 12),
-                          Text(
-                            'Se connecter avec Google',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 15,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ),
                     ),
                   ),
                   const SizedBox(height: 24),
