@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../screens/voice_assistant_screen.dart';
 import '../services/google_auth_service.dart';
+import '../screens/test_cnn_page.dart';
 
 class MyMenu2 extends StatefulWidget {
   const MyMenu2({super.key});
@@ -272,6 +273,12 @@ class _MyMenu2State extends State<MyMenu2> {
                         title: 'CNN Model',
                         onTap: () {
                           Navigator.pop(context);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => CNNTestPage(),
+                            ),
+                          );
                         },
                       ),
                       _buildSubListTile(
