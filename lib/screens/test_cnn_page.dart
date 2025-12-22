@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import '../services/cnn_api_service.dart';  // Your existing service file
+import '../services/cnn_api_service.dart';
 
 class CNNTestPage extends StatefulWidget {
   @override
@@ -9,7 +9,6 @@ class CNNTestPage extends StatefulWidget {
 }
 
 class _CNNTestPageState extends State<CNNTestPage> {
-  // Variables
   bool _serverHealthy = false;
   bool _loading = false;
   String _connectionStatus = 'Not checked';
@@ -22,11 +21,9 @@ class _CNNTestPageState extends State<CNNTestPage> {
   @override
   void initState() {
     super.initState();
-    // Check server health when page loads
     _checkServerHealth();
   }
   
-  // Check if server is running
   Future<void> _checkServerHealth() async {
     setState(() {
       _loading = true;
@@ -43,7 +40,6 @@ class _CNNTestPageState extends State<CNNTestPage> {
             : '❌ Server is not responding';
       });
       
-      // If server is healthy, get available classes
       if (isHealthy) {
         await _getAvailableClasses();
       }
@@ -59,7 +55,6 @@ class _CNNTestPageState extends State<CNNTestPage> {
     }
   }
   
-  // Get list of supported fruit/vegetable classes
   Future<void> _getAvailableClasses() async {
     setState(() => _loading = true);
     
@@ -75,18 +70,16 @@ class _CNNTestPageState extends State<CNNTestPage> {
     }
   }
   
-  // Pick image from gallery
   Future<void> _pickImageFromGallery() async {
     final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
     if (image != null) {
       setState(() {
         _selectedImage = File(image.path);
-        _predictionResult = null; // Clear previous result
+        _predictionResult = null;
       });
     }
   }
   
-  // Take photo with camera
   Future<void> _takePhotoWithCamera() async {
     final XFile? image = await _picker.pickImage(source: ImageSource.camera);
     if (image != null) {
@@ -97,7 +90,6 @@ class _CNNTestPageState extends State<CNNTestPage> {
     }
   }
   
-  // Send image to API for prediction
   Future<void> _predictImage() async {
     if (_selectedImage == null) return;
     
@@ -112,19 +104,21 @@ class _CNNTestPageState extends State<CNNTestPage> {
       setState(() {
         _predictionResult = result;
         if (result['success'] == true) {
-          // Show success snackbar
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('✅ Prediction successful!'),
-              backgroundColor: Colors.green,
+              content: const Text('✅ Prediction successful!'),
+              backgroundColor: const Color(0xFF5CFBAC),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
           );
         } else {
-          // Show error snackbar
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('❌ Error: ${result['error']}'),
-              backgroundColor: Colors.red,
+              backgroundColor: const Color(0xFFFF5252),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
           );
         }
@@ -133,7 +127,9 @@ class _CNNTestPageState extends State<CNNTestPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('❌ Unexpected error: $e'),
-          backgroundColor: Colors.red,
+          backgroundColor: const Color(0xFFFF5252),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       );
     } finally {
@@ -141,7 +137,6 @@ class _CNNTestPageState extends State<CNNTestPage> {
     }
   }
   
-  // Clear selected image and results
   void _clearSelection() {
     setState(() {
       _selectedImage = null;
@@ -152,336 +147,551 @@ class _CNNTestPageState extends State<CNNTestPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFF121212),
       appBar: AppBar(
-        title: Text('Fruit & Vegetable Classifier'),
-        backgroundColor: _serverHealthy ? Colors.green : Colors.orange,
+        title: const Text(
+          'Fruit & Vegetable Classifier',
+          style: TextStyle(color: Colors.white),
+        ),
+        backgroundColor: const Color(0xFF1E1E1E),
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
         actions: [
           IconButton(
-            icon: Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh, color: Color(0xFF5CFBAC)),
             onPressed: _checkServerHealth,
             tooltip: 'Check server connection',
           ),
         ],
       ),
       
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Connection Status Card
-              Card(
-                color: _serverHealthy ? Colors.green[50] : Colors.orange[50],
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Connection Status Card
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: _serverHealthy 
+                    ? const Color(0xFF5CFBAC).withOpacity(0.1)
+                    : Colors.orange.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: _serverHealthy 
+                      ? const Color(0xFF5CFBAC).withOpacity(0.3)
+                      : Colors.orange.withOpacity(0.3),
+                  width: 1,
+                ),
+              ),
+              child: Column(
+                children: [
+                  Row(
                     children: [
-                      Row(
-                        children: [
-                          Icon(
-                            _serverHealthy ? Icons.check_circle : Icons.error,
-                            color: _serverHealthy ? Colors.green : Colors.orange,
-                          ),
-                          SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: _serverHealthy 
+                              ? const Color(0xFF5CFBAC).withOpacity(0.2)
+                              : Colors.orange.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Icon(
+                          _serverHealthy ? Icons.check_circle : Icons.error,
+                          color: _serverHealthy ? const Color(0xFF5CFBAC) : Colors.orange,
+                          size: 24,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Server Status',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.white.withOpacity(0.7),
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
                               _connectionStatus,
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
-                                color: _serverHealthy ? Colors.green : Colors.orange,
+                                color: _serverHealthy ? const Color(0xFF5CFBAC) : Colors.orange,
+                                fontSize: 14,
                               ),
                             ),
-                          ),
-                        ],
-                      ),
-                      
-                      if (_availableClasses != null) ...[
-                        SizedBox(height: 10),
-                        Text(
-                          'Available classes: ${_availableClasses!.length}',
-                          style: TextStyle(fontSize: 12, color: Colors.grey),
-                        ),
-                      ],
-                      
-                      SizedBox(height: 10),
-                      ElevatedButton.icon(
-                        onPressed: _checkServerHealth,
-                        icon: Icon(Icons.wifi_find, size: 18),
-                        label: Text('Check Connection'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: _serverHealthy ? Colors.green : Colors.blue,
+                          ],
                         ),
                       ),
                     ],
                   ),
-                ),
-              ),
-              
-              SizedBox(height: 20),
-              
-              // Image Selection Section
-              Text(
-                'Select Image:',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              SizedBox(height: 10),
-              
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  ElevatedButton.icon(
-                    onPressed: _pickImageFromGallery,
-                    icon: Icon(Icons.photo_library),
-                    label: Text('Gallery'),
-                    style: ElevatedButton.styleFrom(
-                      minimumSize: Size(140, 50),
-                    ),
-                  ),
                   
-                  ElevatedButton.icon(
-                    onPressed: _takePhotoWithCamera,
-                    icon: Icon(Icons.camera_alt),
-                    label: Text('Camera'),
-                    style: ElevatedButton.styleFrom(
-                      minimumSize: Size(140, 50),
+                  if (_availableClasses != null) ...[
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1E1E1E),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        'Available classes: ${_availableClasses!.length}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF9E9E9E),
+                        ),
+                      ),
                     ),
-                  ),
+                  ],
                 ],
               ),
-              
-              SizedBox(height: 20),
-              
-              // Selected Image Display
-              if (_selectedImage != null) ...[
-                Card(
-                  elevation: 4,
-                  child: Column(
-                    children: [
-                      Container(
-                        height: 200,
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.vertical(top: Radius.circular(8)),
+            ),
+            
+            const SizedBox(height: 32),
+            
+            // Image Selection Section
+            const Text(
+              'Select Image',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 16),
+            
+            Row(
+              children: [
+                Expanded(
+                  child: InkWell(
+                    onTap: _pickImageFromGallery,
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      height: 120,
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1E1E1E),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: const Color(0xFF2E2E2E),
+                          width: 1,
                         ),
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF5CFBAC),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(
+                              Icons.photo_library,
+                              color: Color(0xFF121212),
+                              size: 24,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          const Text(
+                            'Gallery',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                
+                const SizedBox(width: 12),
+                
+                Expanded(
+                  child: InkWell(
+                    onTap: _takePhotoWithCamera,
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      height: 120,
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1E1E1E),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: const Color(0xFF2E2E2E),
+                          width: 1,
+                        ),
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF5CFBAC),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(
+                              Icons.camera_alt,
+                              color: Color(0xFF121212),
+                              size: 24,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          const Text(
+                            'Camera',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            
+            const SizedBox(height: 32),
+            
+            // Selected Image Display
+            if (_selectedImage != null) ...[
+              Container(
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1E1E1E),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: const Color(0xFF2E2E2E),
+                    width: 1,
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    ClipRRect(
+                      borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                      child: Container(
+                        height: 250,
+                        width: double.infinity,
                         child: Image.file(
                           _selectedImage!,
                           fit: BoxFit.cover,
                         ),
                       ),
-                      
-                      Padding(
-                        padding: const EdgeInsets.all(12.0),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Selected Image',
-                              style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Selected Image',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                              fontSize: 15,
                             ),
-                            Row(
-                              children: [
-                                IconButton(
-                                  icon: Icon(Icons.delete, color: Colors.red),
-                                  onPressed: _clearSelection,
-                                  tooltip: 'Remove image',
+                          ),
+                          Row(
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.delete_outline, color: Color(0xFFFF5252)),
+                                onPressed: _clearSelection,
+                                tooltip: 'Remove image',
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(12),
+                                  color: const Color(0xFF5CFBAC),
                                 ),
-                                ElevatedButton(
-                                  onPressed: _serverHealthy ? _predictImage : null,
+                                child: ElevatedButton(
+                                  onPressed: _serverHealthy && !_loading ? _predictImage : null,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.transparent,
+                                    shadowColor: Colors.transparent,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
                                   child: _loading 
-                                      ? SizedBox(
+                                      ? const SizedBox(
                                           width: 20,
                                           height: 20,
                                           child: CircularProgressIndicator(
                                             strokeWidth: 2,
-                                            color: Colors.white,
+                                            color: Color(0xFF121212),
                                           ),
                                         )
-                                      : Text('Classify'),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.blue,
-                                    foregroundColor: Colors.white,
-                                  ),
+                                      : const Text(
+                                          'Classify',
+                                          style: TextStyle(
+                                            color: Color(0xFF121212),
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
                                 ),
-                              ],
-                            ),
-                          ],
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ] else ...[
+              Container(
+                height: 200,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1E1E1E),
+                  border: Border.all(color: const Color(0xFF2E2E2E)),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.photo,
+                        size: 60,
+                        color: Colors.white.withOpacity(0.3),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'No image selected',
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.5),
+                          fontSize: 16,
                         ),
                       ),
                     ],
                   ),
                 ),
-              ] else ...[
-                // Placeholder when no image selected
-                Container(
-                  height: 150,
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey[300]!),
-                    borderRadius: BorderRadius.circular(8),
+              ),
+            ],
+            
+            const SizedBox(height: 32),
+            
+            // Prediction Results
+            if (_predictionResult != null && _predictionResult!['success'] == true) ...[
+              const Text(
+                'Prediction Results',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 16),
+              
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF5CFBAC).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: const Color(0xFF5CFBAC).withOpacity(0.3),
+                    width: 1,
                   ),
-                  child: Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
                       children: [
-                        Icon(Icons.photo, size: 50, color: Colors.grey[400]),
-                        SizedBox(height: 10),
-                        Text(
-                          'No image selected',
-                          style: TextStyle(color: Colors.grey[600]),
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF5CFBAC),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(
+                            Icons.check_circle,
+                            color: Color(0xFF121212),
+                            size: 24,
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _predictionResult!['label'],
+                                style: const TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF5CFBAC),
+                                ),
+                              ),
+                              Text(
+                                'Confidence: ${(_predictionResult!['confidence'] * 100).toStringAsFixed(1)}%',
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  color: Color(0xFF9E9E9E),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
-                  ),
-                ),
-              ],
-              
-              SizedBox(height: 20),
-              
-              // Prediction Results
-              if (_predictionResult != null && _predictionResult!['success'] == true) ...[
-                Text(
-                  'Prediction Results:',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                SizedBox(height: 10),
-                
-                Card(
-                  color: Colors.green[50],
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Main Prediction
-                        Row(
+                    
+                    const SizedBox(height: 24),
+                    
+                    Text(
+                      'Top Predictions',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white.withOpacity(0.9),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    
+                    ...(_predictionResult!['top_predictions'] as List<dynamic>).map((pred) {
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF1E1E1E),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Row(
                           children: [
-                            Icon(Icons.check_circle, color: Colors.green),
-                            SizedBox(width: 10),
+                            Container(
+                              width: 8,
+                              height: 8,
+                              decoration: const BoxDecoration(
+                                color: Color(0xFF5CFBAC),
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
                             Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    _predictionResult!['label'],
-                                    style: TextStyle(
-                                      fontSize: 24,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.green[800],
-                                    ),
-                                  ),
-                                  Text(
-                                    'Confidence: ${(_predictionResult!['confidence'] * 100).toStringAsFixed(1)}%',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      color: Colors.grey[700],
-                                    ),
-                                  ),
-                                ],
+                              child: Text(
+                                pred['class'],
+                                style: const TextStyle(
+                                  fontSize: 15,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                            Text(
+                              '${(pred['confidence'] * 100).toStringAsFixed(1)}%',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF5CFBAC),
+                                fontSize: 14,
                               ),
                             ),
                           ],
                         ),
-                        
-                        SizedBox(height: 20),
-                        
-                        // Top Predictions
-                        Text(
-                          'Top Predictions:',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.grey[800],
-                          ),
-                        ),
-                        SizedBox(height: 10),
-                        
-                        ...(_predictionResult!['top_predictions'] as List<dynamic>).map((pred) {
-                          return Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 4.0),
-                            child: Row(
-                              children: [
-                                Container(
-                                  width: 8,
-                                  height: 8,
-                                  decoration: BoxDecoration(
-                                    color: Colors.green,
-                                    shape: BoxShape.circle,
-                                  ),
-                                ),
-                                SizedBox(width: 10),
-                                Expanded(
-                                  child: Text(
-                                    pred['class'],
-                                    style: TextStyle(fontSize: 16),
-                                  ),
-                                ),
-                                Text(
-                                  '${(pred['confidence'] * 100).toStringAsFixed(1)}%',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.grey[700],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        }).toList(),
-                      ],
-                    ),
+                      );
+                    }).toList(),
+                  ],
+                ),
+              ),
+            ] else if (_predictionResult != null && _predictionResult!['success'] == false) ...[
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFF5252).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: const Color(0xFFFF5252).withOpacity(0.3),
+                    width: 1,
                   ),
                 ),
-              ] else if (_predictionResult != null && _predictionResult!['success'] == false) ...[
-                // Error Display
-                Card(
-                  color: Colors.red[50],
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Row(
-                      children: [
-                        Icon(Icons.error, color: Colors.red),
-                        SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            'Error: ${_predictionResult!['error']}',
-                            style: TextStyle(color: Colors.red[800]),
-                          ),
-                        ),
-                      ],
+                child: Row(
+                  children: [
+                    const Icon(Icons.error, color: Color(0xFFFF5252)),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Text(
+                        'Error: ${_predictionResult!['error']}',
+                        style: const TextStyle(color: Color(0xFFFF5252)),
+                      ),
                     ),
-                  ),
+                  ],
                 ),
-              ],
-              
-              // Loading Indicator
-              if (_loading) ...[
-                SizedBox(height: 20),
-                Center(
-                  child: CircularProgressIndicator(),
-                ),
-              ],
+              ),
             ],
-          ),
+            
+            if (_loading && _selectedImage == null) ...[
+              const SizedBox(height: 32),
+              const Center(
+                child: CircularProgressIndicator(
+                  color: Color(0xFF5CFBAC),
+                ),
+              ),
+            ],
+            
+            const SizedBox(height: 32),
+          ],
         ),
       ),
       
-      // Floating Action Button for quick test
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          if (_serverHealthy && _selectedImage != null) {
-            _predictImage();
-          } else if (_selectedImage == null) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Please select an image first')),
-            );
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Server is not connected')),
-            );
-          }
-        },
-        icon: Icon(Icons.science),
-        label: Text('Test Classification'),
-        backgroundColor: _serverHealthy ? Colors.green : Colors.grey,
+      floatingActionButton: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          gradient: LinearGradient(
+            colors: _serverHealthy && _selectedImage != null
+                ? [const Color(0xFF5CFBAC), const Color(0xFF4AE89B)]
+                : [Colors.grey.shade700, Colors.grey.shade600],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        child: FloatingActionButton.extended(
+          onPressed: () {
+            if (_serverHealthy && _selectedImage != null) {
+              _predictImage();
+            } else if (_selectedImage == null) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: const Text('Please select an image first'),
+                  backgroundColor: const Color(0xFFFF5252),
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              );
+            } else {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: const Text('Server is not connected'),
+                  backgroundColor: const Color(0xFFFF5252),
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              );
+            }
+          },
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          icon: const Icon(Icons.science, color: Color(0xFF121212)),
+          label: const Text(
+            'Test Classification',
+            style: TextStyle(
+              color: Color(0xFF121212),
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
       ),
     );
   }
