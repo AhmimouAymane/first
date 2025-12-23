@@ -4,6 +4,8 @@ import 'package:image_picker/image_picker.dart';
 import '../services/cnn_api_service.dart';
 
 class CNNTestPage extends StatefulWidget {
+  const CNNTestPage({super.key});
+
   @override
   _CNNTestPageState createState() => _CNNTestPageState();
 }
@@ -382,7 +384,7 @@ class _CNNTestPageState extends State<CNNTestPage> {
                   children: [
                     ClipRRect(
                       borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                      child: Container(
+                      child: SizedBox(
                         height: 250,
                         width: double.infinity,
                         child: Image.file(
@@ -602,7 +604,7 @@ class _CNNTestPageState extends State<CNNTestPage> {
                           ],
                         ),
                       );
-                    }).toList(),
+                    }),
                   ],
                 ),
               ),

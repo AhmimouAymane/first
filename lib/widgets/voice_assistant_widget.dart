@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:speech_to_text/speech_recognition_result.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:flutter_tts/flutter_tts.dart';
+import 'dart:js' as js;
+import '../services/gemini_service.dart';
 
 class VoiceAssistantWidget extends StatefulWidget {
   final void Function(String)? onResultReceived;
@@ -15,8 +18,14 @@ class VoiceAssistantWidget extends StatefulWidget {
 class _VoiceAssistantWidgetState extends State<VoiceAssistantWidget>
     with SingleTickerProviderStateMixin {
   final SpeechToText _speechToText = SpeechToText();
+  final FlutterTts _flutterTts = FlutterTts();
+  final GeminiService _geminiService = GeminiService();
+  final ScrollController _scrollController = ScrollController();
+  
   bool _speechEnabled = false;
-  String _lastWords = '';
+  String _userInput = '';
+  String _aiResponse = '';
+  bool _isProcessing = false;
   bool _isTestMode = false;
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
@@ -25,6 +34,7 @@ class _VoiceAssistantWidgetState extends State<VoiceAssistantWidget>
   void initState() {
     super.initState();
     _initSpeech();
+    _initTts();
     
     // Animation for mic pulse effect
     _pulseController = AnimationController(
@@ -35,6 +45,98 @@ class _VoiceAssistantWidgetState extends State<VoiceAssistantWidget>
     _pulseAnimation = Tween<double>(begin: 1.0, end: 1.2).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
+  }
+
+  @override
+  void dispose() {
+    _speechToText.stop();
+    _pulseController.dispose();
+    _flutterTts.stop();
+    try {
+      js.context.callMethod('eval', ["window.speechSynthesis.cancel();"]);
+    } catch (_) {}
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _initTts() async {
+    try {
+      print('🔊 Initializing TTS...');
+      
+      // On Web, we need to wait for voices to be loaded
+      if (identical(0, 0.0)) { // Web check
+        await Future.delayed(const Duration(milliseconds: 500));
+      }
+
+      final voices = await _flutterTts.getVoices;
+      print('🔊 TTS Voices available: ${voices.length}');
+      
+      // Look for a French voice specifically
+      dynamic bestVoice;
+      for (var voice in voices) {
+        final name = voice.toString().toLowerCase();
+        if (name.contains('fr') || name.contains('french')) {
+          bestVoice = voice;
+          if (name.contains('google') || name.contains('premium')) break;
+        }
+      }
+
+      if (bestVoice != null) {
+        print('🔊 Selected Voice: $bestVoice');
+        if (bestVoice is Map) {
+          await _flutterTts.setVoice({"name": bestVoice["name"], "locale": bestVoice["locale"]});
+        }
+      } else {
+        await _flutterTts.setLanguage("fr-FR");
+      }
+
+      await _flutterTts.setSpeechRate(0.5);
+      await _flutterTts.setVolume(1.0);
+      await _flutterTts.setPitch(1.0);
+    } catch (e) {
+      print('🔊 TTS Init Error: $e');
+    }
+  }
+
+  String? _extractImageUrl(String text) {
+    final regExp = RegExp(r'!\[.*?\]\((.*?)\)');
+    final match = regExp.firstMatch(text);
+    return match?.group(1);
+  }
+
+  Future<void> _speak(String text) async {
+    if (text.isEmpty) return;
+    
+    // Stop any ongoing speech first (Universal stop)
+    try {
+      await _flutterTts.stop();
+      js.context.callMethod('eval', ["window.speechSynthesis.cancel();"]);
+    } catch (_) {}
+
+    // Clean text (remove image markdown)
+    String cleanText = text;
+    if (text.contains('![')) {
+      cleanText = text.split('![').first.trim();
+    }
+    if (cleanText.isEmpty) return;
+
+    try {
+      print('🔊 Plugin speak: ${cleanText.substring(0, cleanText.length > 20 ? 20 : cleanText.length)}...');
+      await _flutterTts.setLanguage("fr-FR");
+      await _flutterTts.setVolume(1.0);
+      await _flutterTts.speak(cleanText);
+    } catch (e) {
+      print('🔊 Plugin failed ($e). Using Web Native Speech fallback...');
+      try {
+        // Direct JavaScript SpeechSynthesis API call bypassing the plugin
+        js.context.callMethod('eval', [
+          "var msg = new SpeechSynthesisUtterance('${cleanText.replaceAll("'", "\\'").replaceAll("\n", " ").replaceAll("\r", "")}'); " "msg.lang = 'fr-FR'; " +
+          "window.speechSynthesis.speak(msg);"
+        ]);
+      } catch (jsError) {
+        print('🚨 Critical Speak Error: $jsError');
+      }
+    }
   }
 
   void _initSpeech() async {
@@ -63,7 +165,6 @@ class _VoiceAssistantWidgetState extends State<VoiceAssistantWidget>
           print('Speech recognition error: $error');
           if (mounted) {
             final msg = error.errorMsg;
-            final isTimeout = msg.contains('timeout');
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text('Erreur: $msg'),
@@ -72,18 +173,6 @@ class _VoiceAssistantWidgetState extends State<VoiceAssistantWidget>
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
-                action: isTimeout
-                    ? SnackBarAction(
-                        label: 'Réessayer',
-                        textColor: const Color(0xFF5CFBAC),
-                        onPressed: () {
-                          Future.delayed(
-                            const Duration(milliseconds: 500),
-                            _startListening,
-                          );
-                        },
-                      )
-                    : null,
               ),
             );
           }
@@ -135,10 +224,18 @@ class _VoiceAssistantWidgetState extends State<VoiceAssistantWidget>
       return;
     }
 
+    setState(() {
+      _userInput = '';
+      _aiResponse = '';
+    });
+    
+    // Web audio unlock
+    _speak('');
+
     await _speechToText.listen(
       onResult: _onSpeechResult,
       listenFor: const Duration(seconds: 60),
-      pauseFor: const Duration(seconds: 10),
+      pauseFor: const Duration(seconds: 3),
       partialResults: true,
       localeId: 'fr_FR',
       cancelOnError: true,
@@ -147,17 +244,19 @@ class _VoiceAssistantWidgetState extends State<VoiceAssistantWidget>
     setState(() {});
   }
 
-  void _startTestMode() {
+  void _startTestMode() async {
     setState(() {
-      _lastWords = '';
+      _userInput = '';
+      _aiResponse = '';
     });
 
-    Future.delayed(const Duration(milliseconds: 500), () {
+    Future.delayed(const Duration(milliseconds: 500), () async {
       if (mounted) {
+        final testQuestion = 'Qu\'est-ce qu\'une pomme?';
         setState(() {
-          _lastWords = 'Ceci est une parole simulée pour tester';
+          _userInput = testQuestion;
         });
-        widget.onResultReceived?.call(_lastWords);
+        await _processWithGemini(testQuestion);
       }
     });
   }
@@ -168,17 +267,61 @@ class _VoiceAssistantWidgetState extends State<VoiceAssistantWidget>
     setState(() {});
   }
 
-  void _onSpeechResult(SpeechRecognitionResult result) {
+  void _onSpeechResult(SpeechRecognitionResult result) async {
     setState(() {
-      // Only show the last sentence (split by period, question mark, or exclamation)
-      final sentences = result.recognizedWords.split(RegExp(r'[.!?]'));
-      _lastWords = sentences.last.trim();
-      if (_lastWords.isEmpty && sentences.length > 1) {
-        _lastWords = sentences[sentences.length - 2].trim();
+      _userInput = result.recognizedWords;
+    });
+    
+    // If final result, process with Gemini
+    if (result.finalResult) {
+      await _processWithGemini(_userInput);
+    }
+    
+    widget.onResultReceived?.call(_userInput);
+  }
+
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
       }
     });
-    print('Reconnu (final=${result.finalResult}): $_lastWords');
-    widget.onResultReceived?.call(_lastWords);
+  }
+
+  Future<void> _processWithGemini(String input) async {
+    if (input.trim().isEmpty) return;
+
+    setState(() {
+      _isProcessing = true;
+      _userInput = input; // Keep for the current turn UI feedback if needed
+      _aiResponse = 'Réflexion en cours...';
+    });
+    
+    _scrollToBottom();
+
+    try {
+      final response = await _geminiService.sendMessage(input);
+      
+      setState(() {
+        _aiResponse = response;
+        _isProcessing = false;
+      });
+
+      _scrollToBottom();
+
+      // Speak the response
+      await _speak(response);
+      
+    } catch (e) {
+      setState(() {
+        _aiResponse = 'Erreur: ${e.toString()}';
+        _isProcessing = false;
+      });
+    }
   }
 
   @override
@@ -189,6 +332,7 @@ class _VoiceAssistantWidgetState extends State<VoiceAssistantWidget>
       color: const Color(0xFF121212),
       child: Center(
         child: SingleChildScrollView(
+          controller: _scrollController,
           padding: const EdgeInsets.all(24),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -228,7 +372,51 @@ class _VoiceAssistantWidgetState extends State<VoiceAssistantWidget>
                     ],
                   ),
                 ),
-              const SizedBox(height: 40),
+              // Assistant Header with Reset
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Assistant Omnium',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.volume_up, color: Color(0xFF5CFBAC)),
+                        tooltip: 'Initialiser l\'Audio',
+                        onPressed: () => _speak('Audio activée'),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.stop_circle_outlined, color: Color(0xFFFF5252)),
+                        tooltip: 'Arrêter la Voix',
+                        onPressed: () {
+                          _flutterTts.stop();
+                          js.context.callMethod('eval', ["window.speechSynthesis.cancel();"]);
+                        },
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.refresh, color: Color(0xFF5CFBAC)),
+                        tooltip: 'Réinitialiser',
+                        onPressed: () {
+                          _geminiService.clearHistory();
+                          _flutterTts.stop();
+                          js.context.callMethod('eval', ["window.speechSynthesis.cancel();"]);
+                          setState(() {
+                            _aiResponse = '';
+                            _userInput = '';
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
 
               // Animated microphone circle
               AnimatedBuilder(
@@ -240,7 +428,7 @@ class _VoiceAssistantWidgetState extends State<VoiceAssistantWidget>
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       gradient: RadialGradient(
-                        colors: isListening
+                        colors: isListening || _isProcessing
                             ? [
                                 const Color(0xFF5CFBAC).withOpacity(0.3),
                                 const Color(0xFF5CFBAC).withOpacity(0.1),
@@ -251,7 +439,7 @@ class _VoiceAssistantWidgetState extends State<VoiceAssistantWidget>
                                 const Color(0xFF1E1E1E),
                               ],
                       ),
-                      boxShadow: isListening
+                      boxShadow: isListening || _isProcessing
                           ? [
                               BoxShadow(
                                 color: const Color(0xFF5CFBAC).withOpacity(0.3),
@@ -267,20 +455,22 @@ class _VoiceAssistantWidgetState extends State<VoiceAssistantWidget>
                         height: 120,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: isListening
+                          color: isListening || _isProcessing
                               ? const Color(0xFF5CFBAC)
                               : const Color(0xFF2E2E2E),
                           border: Border.all(
-                            color: isListening
+                            color: isListening || _isProcessing
                                 ? const Color(0xFF5CFBAC)
                                 : const Color(0xFF3E3E3E),
                             width: 2,
                           ),
                         ),
                         child: Icon(
-                          isListening ? Icons.mic : Icons.mic_none,
+                          _isProcessing 
+                              ? Icons.psychology 
+                              : (isListening ? Icons.mic : Icons.mic_none),
                           size: 60,
-                          color: isListening
+                          color: isListening || _isProcessing
                               ? const Color(0xFF121212)
                               : const Color(0xFF5CFBAC),
                         ),
@@ -298,12 +488,12 @@ class _VoiceAssistantWidgetState extends State<VoiceAssistantWidget>
                   vertical: 12,
                 ),
                 decoration: BoxDecoration(
-                  color: isListening
+                  color: isListening || _isProcessing
                       ? const Color(0xFF5CFBAC).withOpacity(0.1)
                       : const Color(0xFF1E1E1E),
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color: isListening
+                    color: isListening || _isProcessing
                         ? const Color(0xFF5CFBAC).withOpacity(0.3)
                         : const Color(0xFF2E2E2E),
                     width: 1,
@@ -317,18 +507,20 @@ class _VoiceAssistantWidgetState extends State<VoiceAssistantWidget>
                       height: 8,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: isListening
+                        color: isListening || _isProcessing
                             ? const Color(0xFF5CFBAC)
                             : const Color(0xFF9E9E9E),
                       ),
                     ),
                     const SizedBox(width: 12),
                     Text(
-                      isListening ? 'En écoute...' : 'Prêt',
+                      _isProcessing 
+                          ? 'Traitement...' 
+                          : (isListening ? 'En écoute...' : 'Prêt'),
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
-                        color: isListening
+                        color: isListening || _isProcessing
                             ? const Color(0xFF5CFBAC)
                             : Colors.white,
                       ),
@@ -338,107 +530,114 @@ class _VoiceAssistantWidgetState extends State<VoiceAssistantWidget>
               ),
               const SizedBox(height: 32),
 
-              // Recognized words display
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1E1E1E),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: const Color(0xFF2E2E2E),
-                    width: 1,
-                  ),
-                ),
-                child: Column(
-                  children: [
-                    Row(
+              // Chat History Display
+              if (_geminiService.history.isNotEmpty)
+                ..._geminiService.history.map((chat) {
+                  final isUser = chat['role'] == 'user';
+                  final text = chat['text'] as String;
+                  
+                  return Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      color: isUser ? const Color(0xFF1E1E1E) : null,
+                      gradient: isUser ? null : LinearGradient(
+                        colors: [
+                          const Color(0xFF5CFBAC).withOpacity(0.1),
+                          const Color(0xFF1E1E1E),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: isUser ? const Color(0xFF5CFBAC).withOpacity(0.3) : const Color(0xFF5CFBAC),
+                        width: 1,
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF5CFBAC).withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Icon(
-                            Icons.chat_bubble_outline,
-                            color: Color(0xFF5CFBAC),
-                            size: 20,
+                        Row(
+                          children: [
+                            Icon(
+                              isUser ? Icons.person : Icons.auto_awesome,
+                              color: const Color(0xFF5CFBAC),
+                              size: 18,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              isUser ? 'Vous' : 'Gemini',
+                              style: const TextStyle(
+                                fontSize: 13,
+                                color: Color(0xFF5CFBAC),
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const Spacer(),
+                            if (!isUser)
+                              IconButton(
+                                icon: const Icon(Icons.volume_up, color: Color(0xFF5CFBAC), size: 18),
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                                onPressed: () => _speak(text),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          text.contains('![') ? text.split('![').first.trim() : text,
+                          style: const TextStyle(
+                            fontSize: 15,
+                            color: Colors.white,
+                            height: 1.4,
                           ),
                         ),
-                        const SizedBox(width: 12),
-                        const Text(
-                          'Paroles reconnues',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Color(0xFF9E9E9E),
-                            fontWeight: FontWeight.w500,
+                        if (text.contains('!['))
+                          Padding(
+                            padding: const EdgeInsets.only(top: 12),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(12),
+                              child: Image.network(
+                                _extractImageUrl(text) ?? '',
+                                loadingBuilder: (context, child, loadingProgress) {
+                                  if (loadingProgress == null) return child;
+                                  return const Center(
+                                    child: Padding(
+                                      padding: EdgeInsets.all(20),
+                                      child: CircularProgressIndicator(color: Color(0xFF5CFBAC)),
+                                    ),
+                                  );
+                                },
+                                errorBuilder: (context, error, stackTrace) => 
+                                  const Icon(Icons.broken_image, color: Colors.orange),
+                              ),
+                            ),
                           ),
-                        ),
                       ],
                     ),
-                    const SizedBox(height: 16),
-                    Text(
-                      isListening
-                          ? _lastWords.isEmpty
-                              ? 'En attente de paroles...'
-                              : _lastWords
-                          : _speechEnabled || _isTestMode
-                          ? _lastWords.isEmpty
-                              ? 'Appuyez sur le bouton pour commencer'
-                              : _lastWords
-                          : 'Reconnaissance vocale non disponible',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                        color: isListening
-                            ? const Color(0xFF5CFBAC)
-                            : Colors.white,
-                        height: 1.5,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 32),
+                  );
+                }),
 
-              // Listening indicator
-              if (isListening)
+              // Processing hint (if Gemini is thinking)
+              if (_isProcessing && (_geminiService.history.isEmpty || _geminiService.history.last['role'] != 'model'))
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 10,
-                  ),
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  margin: const EdgeInsets.only(bottom: 16),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF5CFBAC).withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: const Color(0xFF5CFBAC).withOpacity(0.3),
-                      width: 1,
-                    ),
+                    color: const Color(0xFF1E1E1E),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFF5CFBAC).withOpacity(0.1)),
                   ),
                   child: const Row(
-                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(
-                        Icons.graphic_eq,
-                        color: Color(0xFF5CFBAC),
-                        size: 18,
-                      ),
-                      SizedBox(width: 8),
-                      Text(
-                        'Écoute en cours... Parlez maintenant',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Color(0xFF5CFBAC),
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
+                      CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF5CFBAC), value: null),
+                      SizedBox(width: 16),
+                      Text('Gemini réfléchit...', style: TextStyle(color: Colors.white70)),
                     ],
                   ),
                 ),
-              const SizedBox(height: 40),
+              const SizedBox(height: 32),
 
               // Action button
               Container(
@@ -451,7 +650,9 @@ class _VoiceAssistantWidgetState extends State<VoiceAssistantWidget>
                       : const Color(0xFF5CFBAC),
                 ),
                 child: ElevatedButton(
-                  onPressed: isListening ? _stopListening : _startListening,
+                  onPressed: _isProcessing 
+                      ? null 
+                      : (isListening ? _stopListening : _startListening),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.transparent,
                     shadowColor: Colors.transparent,
@@ -469,7 +670,7 @@ class _VoiceAssistantWidgetState extends State<VoiceAssistantWidget>
                       ),
                       const SizedBox(width: 12),
                       Text(
-                        isListening ? 'Arrêter l\'écoute' : 'Commencer l\'écoute',
+                        isListening ? 'Arrêter l\'écoute' : 'Poser une question',
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -487,10 +688,4 @@ class _VoiceAssistantWidgetState extends State<VoiceAssistantWidget>
     );
   }
 
-  @override
-  void dispose() {
-    _speechToText.stop();
-    _pulseController.dispose();
-    super.dispose();
-  }
 }

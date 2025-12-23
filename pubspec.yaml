@@ -51,6 +51,12 @@ dependencies:
   flutter_spinkit: ^5.2.0
   percent_indicator: ^4.2.3
   image: ^4.1.7
+  flutter_launcher_icons: ^0.14.4
+  google_generative_ai: 0.4.0
+  flutter_tts: ^4.0.2
+  file_picker: ^8.1.7
+#  tflite_flutter:
+#    path: packages/tflite_flutter
 
 
 

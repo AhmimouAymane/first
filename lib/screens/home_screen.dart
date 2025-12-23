@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../widgets/mymenu2.dart';
 import './voice_assistant_screen.dart';
+import './cnn_tflite_screen.dart';
+import './ann_tflite_screen.dart';
+import './stock_predictor_screen.dart';
+import './rag_chat_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -11,6 +15,68 @@ class HomeScreen extends StatelessWidget {
     if (hour < 12) return 'Bon matin';
     if (hour < 18) return 'Bon après-midi';
     return 'Bonsoir';
+  }
+
+  void _showModelSelection(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF1E1E1E),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: const Color(0xFF2E2E2E),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              'Choisir le modèle',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 24),
+            _buildBottomSheetItem(
+              icon: Icons.grid_view,
+              title: 'Modèle CNN (Précis)',
+              subtitle: 'Recommandé pour la classification générale',
+              iconColor: const Color(0xFF5CFBAC),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const CNNTFLiteScreen()),
+                );
+              },
+            ),
+            _buildBottomSheetItem(
+              icon: Icons.layers,
+              title: 'Modèle ANN (Rapide)',
+              subtitle: 'Réseau de neurones artificiel standard',
+              iconColor: const Color(0xFFFFA726),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const ANNTFLiteScreen()),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -221,10 +287,15 @@ class HomeScreen extends StatelessWidget {
                       Expanded(
                         child: _buildFeatureCard(
                           context,
-                          icon: Icons.chat_bubble_outline,
-                          title: 'Start A\nNew Chat',
+                          icon: Icons.psychology,
+                          title: 'RAG\nChatbot',
                           onTap: () {
-                            // Navigate to chat
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const RagChatScreen(),
+                              ),
+                            );
                           },
                         ),
                       ),
@@ -235,7 +306,7 @@ class HomeScreen extends StatelessWidget {
                           icon: Icons.image_search_outlined,
                           title: 'Search by\nImage',
                           onTap: () {
-                            // Navigate to image search
+                            _showModelSelection(context);
                           },
                         ),
                       ),
@@ -250,7 +321,12 @@ class HomeScreen extends StatelessWidget {
                           icon: Icons.show_chart,
                           title: 'Stock\nPrediction',
                           onTap: () {
-                            // Navigate to stock prediction
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const StockPredictionScreen(),
+                              ),
+                            );
                           },
                         ),
                       ),
@@ -576,20 +652,30 @@ class HomeScreen extends StatelessWidget {
             _buildBottomSheetItem(
               icon: Icons.camera_alt_outlined,
               title: 'Classifier une image',
+              iconColor: const Color(0xFF5CFBAC),
               onTap: () {
                 Navigator.pop(context);
+                _showModelSelection(context);
               },
             ),
             _buildBottomSheetItem(
               icon: Icons.trending_up,
               title: 'Nouvelle prédiction',
+              iconColor: const Color(0xFF5CFBAC),
               onTap: () {
                 Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const StockPredictionScreen(),
+                  ),
+                );
               },
             ),
             _buildBottomSheetItem(
               icon: Icons.mic_outlined,
               title: 'Commande vocale',
+              iconColor: const Color(0xFF5CFBAC),
               onTap: () {
                 Navigator.pop(context);
                 Navigator.push(
@@ -610,7 +696,9 @@ class HomeScreen extends StatelessWidget {
   Widget _buildBottomSheetItem({
     required IconData icon,
     required String title,
+    String? subtitle,
     required VoidCallback onTap,
+    Color? iconColor,
   }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -618,10 +706,10 @@ class HomeScreen extends StatelessWidget {
         leading: Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: const Color(0xFF5CFBAC).withOpacity(0.1),
+            color: (iconColor ?? const Color(0xFF5CFBAC)).withOpacity(0.1),
             borderRadius: BorderRadius.circular(10),
           ),
-          child: Icon(icon, color: const Color(0xFF5CFBAC), size: 24),
+          child: Icon(icon, color: iconColor ?? const Color(0xFF5CFBAC), size: 24),
         ),
         title: Text(
           title,
@@ -631,6 +719,13 @@ class HomeScreen extends StatelessWidget {
             fontWeight: FontWeight.w500,
           ),
         ),
+        subtitle: subtitle != null ? Text(
+          subtitle,
+          style: const TextStyle(
+            color: Color(0xFF9E9E9E),
+            fontSize: 12,
+          ),
+        ) : null,
         trailing: const Icon(
           Icons.arrow_forward_ios,
           color: Color(0xFF9E9E9E),

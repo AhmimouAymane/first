@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../screens/voice_assistant_screen.dart';
 import '../services/google_auth_service.dart';
-import '../screens/test_cnn_page.dart';
 import '../screens/ann_scanner_page.dart';
+import '../screens/cnn_tflite_screen.dart';
+import '../screens/stock_predictor_screen.dart';
+import '../screens/rag_chat_screen.dart';
 
 class MyMenu2 extends StatefulWidget {
   const MyMenu2({super.key});
@@ -283,7 +285,7 @@ class _MyMenu2State extends State<MyMenu2> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => CNNTestPage(),
+                              builder: (context) => const CNNTFLiteScreen(),
                             ),
                           );
                         },
@@ -294,6 +296,12 @@ class _MyMenu2State extends State<MyMenu2> {
                         title: 'Stock Price Prediction',
                         onTap: () {
                           Navigator.pop(context);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const StockPredictionScreen(),
+                            ),
+                          );
                         },
                       ),
                       _buildSubListTile(
@@ -302,6 +310,12 @@ class _MyMenu2State extends State<MyMenu2> {
                         title: 'RAG Model',
                         onTap: () {
                           Navigator.pop(context);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const RagChatScreen(),
+                            ),
+                          );
                         },
                       ),
                     ],
