@@ -2,7 +2,7 @@ import 'package:google_generative_ai/google_generative_ai.dart';
 
 void main() async {
   const apiKey = 'AIzaSyBuU6q7kS5B_j-vpf114GGHY1eUIZeBhKc';
-  const modelName = 'gemini-1.5-flash';
+  const modelName = 'gemini-pro';
   
   print('Testing model: $modelName...');
   try {

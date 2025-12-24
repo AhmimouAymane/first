@@ -5,10 +5,12 @@ Combines both models into a single API server
 
 import os
 import tensorflow as tf
+import keras
 import numpy as np
 from PIL import Image
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+
 import io
 from sklearn.preprocessing import MinMaxScaler
 from PyPDF2 import PdfReader
@@ -59,17 +61,17 @@ def load_models():
     try:
         # Load ANN model
         print("⌛ Loading ANN Model (ann-model.keras)...")
-        ann_model = tf.keras.models.load_model('ann-model.keras')
+        ann_model = keras.models.load_model('ann-model.keras')
         print("✅ ANN Model loaded successfully")
         
         # Load CNN model
         print("⌛ Loading CNN Model (models/CNN-model.keras)...")
-        cnn_model = tf.keras.models.load_model('models/CNN-model.keras')
+        cnn_model = keras.models.load_model('models/CNN-model.keras')
         print("✅ CNN Model loaded successfully")
 
         # Load Stock model
         print("⌛ Loading Stock Predictor (models/stock_price_predictor_model.keras)...")
-        stock_model = tf.keras.models.load_model('models/stock_price_predictor_model.keras')
+        stock_model = keras.models.load_model('models/stock_price_predictor_model.keras')
         print(f"✅ Stock Price Predictor Model loaded successfully: {stock_model is not None}")
         
         # Define class names (36 fruit/vegetable classes)

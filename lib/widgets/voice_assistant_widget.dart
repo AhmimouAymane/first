@@ -130,8 +130,7 @@ class _VoiceAssistantWidgetState extends State<VoiceAssistantWidget>
       try {
         // Direct JavaScript SpeechSynthesis API call bypassing the plugin
         js.context.callMethod('eval', [
-          "var msg = new SpeechSynthesisUtterance('${cleanText.replaceAll("'", "\\'").replaceAll("\n", " ").replaceAll("\r", "")}'); " "msg.lang = 'fr-FR'; " +
-          "window.speechSynthesis.speak(msg);"
+          "var msg = new SpeechSynthesisUtterance('${cleanText.replaceAll("'", "\\'").replaceAll("\n", " ").replaceAll("\r", "")}'); " "msg.lang = 'fr-FR'; " "window.speechSynthesis.speak(msg);"
         ]);
       } catch (jsError) {
         print('🚨 Critical Speak Error: $jsError');
